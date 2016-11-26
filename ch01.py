@@ -16,12 +16,12 @@ class Buffer:
         self.wip += u
 
         # Transfer from ready pool to queue
-        r = int( round( random.uniform( 0, self.wip ) ) )
+        r = int( round( random.uniform( 0, self.wip ) ) )   # randomly process some items from wip
         self.wip -= r
         self.queued += r
 
         # Release from queue to downstream process
-        r = int( round( random.uniform( 0, self.max_flow ) ) )
+        r = int( round( random.uniform( 0, self.max_flow ) ) )  # randomly process some items from queue
         r = min( r, self.queued )
         self.queued -= r
 
@@ -29,13 +29,19 @@ class Buffer:
 
 class Controller:
     def __init__( self, kp, ki ):
-        self.kp, self.ki = kp, ki
+        self.kp = kp    # proportional gain -> it is said proportional since it of the same magnitude of the current deviation
+        self.ki = ki    # integral gain -> it prevents the control oscillating behaviour of the proportional gain itself
+                        # avoiding to overshoot the correction
+
         self.i = 0       # Cumulative error ("integral")
 
     def work( self, e ):
-        self.i += e
+        self.i += e     # cumulative sum of all deviations
 
-        return self.kp*e + self.ki*self.i
+        # the term (self.ki*self.i) will grow initially as we process items
+        # after the initial big deviations in target error it will stabilize sufficiently
+
+        return self.kp*e + self.ki*self.i   #released units = k p · error + k i · cumulative error
 
 # ============================================================
 
@@ -47,9 +53,12 @@ def open_loop( p, tm=5000 ):
         u = target(t)
         y = p.work( u )
 
-        print t, u, 0, u, y
+        print(t, u, 0, u, y)
 
 def closed_loop( c, p, tm=5000 ):
+    # this function basically defines the rules of the game
+    # the setpoint defines how the systems behaves
+
     def setpoint( t ):
         if t < 100: return 0
         if t < 300: return 50
@@ -58,20 +67,18 @@ def closed_loop( c, p, tm=5000 ):
     y = 0 
     for t in range( tm ):
         r = setpoint(t)
-        e = r - y
-        u = c.work(e)
-        y = p.work(u)
 
-        print t, r, e, u, y
+        # obviosly this can be NEGATIVE!
+        e = r - y       # error: (target released items – actual queued items)
+        u = c.work(e)
+        y = p.work(u)   # simply apply transfers
+
+        print(t, r, e, u, y)
 
 # ============================================================
 
 c = Controller( 1.25, 0.01 )
 p = Buffer( 50, 10 )
 
-# open_loop( p, 1000 )
+# open_loop( p, 1000 ) # to test the Buffer itself
 closed_loop( c, p, 1000 )
-
-
-
-
