@@ -68,7 +68,7 @@ def closed_loop( c, p, tm=5000 ):
     for t in range( tm ):
         r = setpoint(t)
 
-        # obviosly this can be NEGATIVE!
+        # obviously this can be NEGATIVE!
         e = r - y       # error: (target released items – actual queued items)
         u = c.work(e)
         y = p.work(u)   # simply apply transfers
